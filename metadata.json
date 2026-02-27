@@ -1,0 +1,8 @@
+{
+  "name": "InstantVideo",
+  "description": "A zero-login video conferencing app. Just enter and call everyone instantly.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
