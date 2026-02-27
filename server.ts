@@ -16,37 +16,38 @@ async function startServer() {
 
   const PORT = 3000;
 
-  // Socket.io logic for signaling
-  // We'll use a single room for everyone for this "instant" app
-  const ROOM_ID = "global-room";
+  // Simple in-memory lobby for discovery
+  // Note: On Vercel, this is per-instance and ephemeral.
+  // For a real production app, use Redis or a database.
+  const lobby: Record<string, { peers: Set<string>, lastUpdate: number }> = {};
 
-  io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+  app.use(express.json());
 
-    socket.on("join-room", () => {
-      socket.join(ROOM_ID);
-      // Notify others that a new user joined
-      socket.to(ROOM_ID).emit("user-joined", socket.id);
-      
-      // Send the list of existing users to the new user
-      const clients = io.sockets.adapter.rooms.get(ROOM_ID);
-      const users = clients ? Array.from(clients).filter(id => id !== socket.id) : [];
-      socket.emit("all-users", users);
-    });
-
-    socket.on("signal", (data: { to: string; signal: any }) => {
-      // Relay signaling data (offer, answer, ice-candidate) to a specific user
-      io.to(data.to).emit("signal", {
-        from: socket.id,
-        signal: data.signal
-      });
-    });
-
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
-      socket.to(ROOM_ID).emit("user-left", socket.id);
-    });
+  app.post("/api/announce", (req, res) => {
+    const { peerId, room } = req.body;
+    if (!lobby[room]) {
+      lobby[room] = { peers: new Set(), lastUpdate: Date.now() };
+    }
+    lobby[room].peers.add(peerId);
+    lobby[room].lastUpdate = Date.now();
+    res.json({ success: true });
   });
+
+  app.get("/api/peers", (req, res) => {
+    const room = (req.query.room as string) || "global";
+    const peers = lobby[room] ? Array.from(lobby[room].peers) : [];
+    res.json({ peers });
+  });
+
+  // Cleanup old rooms
+  setInterval(() => {
+    const now = Date.now();
+    Object.keys(lobby).forEach(room => {
+      if (now - lobby[room].lastUpdate > 60000) { // 1 minute inactivity
+        delete lobby[room];
+      }
+    });
+  }, 30000);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

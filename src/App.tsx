@@ -30,9 +30,30 @@ function VideoPlayer({ stream, muted = false, label }: VideoPlayerProps) {
 }
 
 export default function App() {
-  const { localStream, remoteStreams, isJoined, joinCall, leaveCall } = useWebRTC();
+  const { localStream, remoteStreams, isJoined, peerId, joinCall, leaveCall } = useWebRTC();
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [roomName, setRoomName] = useState('global');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get('room');
+    if (room) {
+      setRoomName(room);
+    }
+  }, []);
+
+  const handleJoin = () => {
+    joinCall(roomName);
+  };
+
+  const copyLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}?room=${roomName}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const toggleMute = () => {
     if (localStream) {
@@ -63,9 +84,17 @@ export default function App() {
         </div>
         
         {isJoined && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-full border border-white/5">
-            <Users className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-medium">{remoteStreams.length + 1} Učesnika</span>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={copyLink}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-full border border-white/5 transition-colors text-sm font-medium"
+            >
+              {copied ? 'Link Kopiran!' : 'Podeli Link'}
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-full border border-white/5">
+              <Users className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm font-medium">{remoteStreams.length + 1} Učesnika</span>
+            </div>
           </div>
         )}
       </header>
@@ -90,15 +119,28 @@ export default function App() {
                 </p>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={joinCall}
-                className="group relative flex items-center justify-center w-24 h-24 bg-emerald-500 rounded-full shadow-2xl shadow-emerald-500/40 cursor-pointer transition-all hover:bg-emerald-400"
-              >
-                <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-20 group-hover:opacity-40" />
-                <Camera className="w-10 h-10 text-white" />
-              </motion.button>
+              <div className="space-y-4 w-full max-w-sm mx-auto">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-zinc-500 uppercase font-mono text-left ml-1">Ime Sobe</label>
+                  <input 
+                    type="text" 
+                    value={roomName}
+                    onChange={(e) => setRoomName(e.target.value)}
+                    className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors"
+                    placeholder="Unesite ime sobe..."
+                  />
+                </div>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleJoin}
+                  className="group relative flex items-center justify-center w-24 h-24 bg-emerald-500 rounded-full shadow-2xl shadow-emerald-500/40 cursor-pointer transition-all hover:bg-emerald-400 mx-auto"
+                >
+                  <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-20 group-hover:opacity-40" />
+                  <Camera className="w-10 h-10 text-white" />
+                </motion.button>
+              </div>
               
               <div className="pt-8 grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
                 <div className="p-4 bg-zinc-900/50 rounded-2xl border border-white/5">
